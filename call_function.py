@@ -13,7 +13,7 @@ def call_function(function_call, verbose=False):
 	else:
 		print(f"Calling function: {function_name}")
 	function_map = { 
-        "get_files info": get_files_info,
+        "get_files_info": get_files_info,
         "get_file_content": get_file_content,
         "write_file": write_file,
         "run_python_file": run_python_file,
@@ -23,7 +23,7 @@ def call_function(function_call, verbose=False):
 			role="tool",
 			parts=[
 				types.Part.from_function_response(
-					Name=function_name,
+					name=function_name,
 					response={"error": f"Unknown function: {function_name}"},
 				)
 			],
