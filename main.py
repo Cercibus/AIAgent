@@ -23,32 +23,44 @@ messages = [types.Content(role="user", parts=[types.Part(text=args.user_prompt)]
 
 def main():
 	print("Hello from aiagent!")
-	
-	response = client.models.generate_content(
-		model='gemini-2.5-flash',
-		contents=messages,
-		config=types.GenerateContentConfig(
-			system_instruction=system_prompt,
-			tools=[available_functions],
-		),
-	)
-	if not response.usage_metadata:
-		raise RuntimeError("No response... maybe it's sleeping?")
-	if response.function_calls:
-		for function in response.function_calls:
-			try:
-				func_result =  call_function(function, args.verbose)
-			except Exception as e:
-				print(f"There was a {e} type problem while calling {function}")
-				continue
-			if not func_result.parts or not func_result.parts[0].function_response or not func_result.parts[0].function_response.response:
-				raise Exception(f"There's been a problem with the function call, try debugging.")
-			print(f"-> {func_result.parts[0].function_response.response}")
-	else:
-		if args.verbose:
-			print(f"User prompt: {args.user_prompt}\nPrompt tokens: {response.usage_metadata.prompt_token_count}\nResponse tokens: {response.usage_metadata.candidates_token_count}\nResponse:\n{response.text}")
+	for i in range(20):
+		func_resps = []
+		response = client.models.generate_content(
+			model='gemini-2.5-flash',
+			contents=messages,
+			config=types.GenerateContentConfig(
+				system_instruction=system_prompt,
+				tools=[available_functions],
+			),
+		)
+		if response.candidates:
+			for candidate in response.candidates:
+				messages.append(candidate.content)
+		if not response.usage_metadata:
+			raise RuntimeError("No response... maybe it's sleeping?")
+		if response.function_calls:
+			for function in response.function_calls:
+				try:
+					func_result =  call_function(function, args.verbose)
+				except Exception as e:
+					print(f"There was a {e} type problem while calling {function}")
+					continue
+				if not func_result.parts or not func_result.parts[0].function_response or not func_result.parts[0].function_response.response:
+					raise Exception(f"There's been a problem with the function call, try debugging.")
+				print(f"-> {func_result.parts[0].function_response.response}")
+				func_resps.append(func_result.parts[0])
 		else:
+			if args.verbose:
+				print(f"User prompt: {args.user_prompt}\nPrompt tokens: {response.usage_metadata.prompt_token_count}\nResponse tokens: {response.usage_metadata.candidates_token_count}\nResponse:\n{response.text}")
+			else:
+				print(response.text)
+		if func_resps:
+			messages.append(types.Content(role="user", parts=func_resps))
+		if not response.function_calls:
 			print(response.text)
+			return
+	print("Maximum iterations reached")
+	sys.exit(1)
 
 if __name__ == "__main__":
 	main()
